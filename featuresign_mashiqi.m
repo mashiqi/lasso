@@ -6,7 +6,7 @@ function beta = featuresign_mashiqi(X, y, lambda, standardize)
 % Version: 2.0
 % 
 % This code solves the following problem:
-%            argmin_(beta) 0.5*||y - X*beta||_2 + lambda*||beta||_1
+%            argmin_(beta) 0.5*||y - X*beta||^2 + lambda*||beta||_1
 % 
 % Parameter instruction:
 % input:

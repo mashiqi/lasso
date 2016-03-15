@@ -1,14 +1,81 @@
 function [beta,history] = LASSO_mashiqi(X,y,T,Lambda,standardize)
 %{
 % LARS-LASSO algorithm.
-% Author: Shiqi Ma (mashiqi01@gmail.com, http://mashiqi.github.io/)
-% Date: 1/12/2015
-% Version: 2.0
 % 
-% This function tries to find the proper solution of the following question:
-%      (1) argmin_(beta) ||y - X*beta||_2 s.t. ||beta||_1 <= T
+% 
+%	Author:			- Shiqi Ma (mashiqi01@gmail.com, http://mashiqi.github.io/)
+%	Date:			- 3/15/2016
+%	Version:		- 2.5
+% 
+% 
+% This function tries to find the proper solution of the following problem:
+% problem(1): argmin_(beta) ||y - X*beta||^2 s.t. ||beta||_1 <= T
 % or:
-%      (2) argmin_(beta) 0.5*||y - X*beta||_2 + Lambda*||beta||_1
+% problem(2): argmin_(beta) 0.5*||y - X*beta||^2 + Lambda*||beta||_1
+% 
+% 
+% INPUT ARGUMENTS:
+% 
+%	X				- samples of predictors. Each column of X is a predictor, and each row
+% 					  is a data sample.
+% 
+% 	y				- the response. y shold be a vertical vector.
+%
+% 	T				- the norm-one type (1)constraint. T can be a vector. T = [] as default.
+%
+% 	Lambda			- the corresponding type (2) constraint. Lambda can be a vector.
+% 					  Lambda = [] as default.
+%
+% 	standardize		- the indicator. If standardize == 1, every column in X and y
+% 					  will be standardized to mean zero and standard deviation 1. And if its
+% 					  value is 0, then standardization process will not be executed.
+% 					  standardize = 0 as default.
+%
+%
+% OUTPUT ARGUMENTS:
+%
+% 	beta			- results:
+%
+%						[1] beta.TLambdaPairs: the first row are values of Ts, and the second row
+%							are the values of Lambdas. T and Lambda which are in the same column 
+%							have same solution respectively to 'problem(1)' and 'problem(2)'
+%
+%						[2] beta.T: each column is the corresponding solution to 'T' specified in
+%							the input argument
+%
+%						[3] beta.Lambda: each column is the corresponding solution to 'Lambda' 
+%							specified in the input argument
+%
+% 	history			- the history of solution path. 'history' records the status in  
+% 					  every breakpoint by recording the following value:
+%
+%   					[1] history.beta_trace: every beta value in the breakpoint, including
+%   						the starting zero point.
+%
+%   					[2] history.correspondingBeta: every corresponding beta of the
+%   						equiangular vector. The 'correspondingBeta' also represents the \Delta
+%   						beta: 
+%           					beta_(next breakpoint) = beta_(crrent breakpoint) +
+%           											 constant*correspondingBeta.
+%
+%   					[3] history.activeSet: stores the active sets. Every active set in the
+%   						breakpoints will be stored in this cell-type variable. When you want to
+%   						access the kth active set, you should input "history.activeSet{k+1}".
+%
+%   					[4] history.T: store the one-norm of beta in every breakpoint,
+%   						including the starting zero point.
+%
+%   					[5] history.Lambda: store the corresponding Lambda.
+%
+%   					[6] history.A: if you read the reference paper below, you will know
+%   						what is value is. It's difficult to explain if you didn't read this
+%   						paper.
+%
+%   					[7] history.stopReason: a string type. Indicate in what situation is
+%   						the function returned.
+% 
+% 
+% EXAMPLE:
 % 
 % This function computes every beta value in the breakpoint and several
 % related values. If you just want to get the specific beta for a specific
@@ -17,20 +84,20 @@ function [beta,history] = LASSO_mashiqi(X,y,T,Lambda,standardize)
 %            [beta,history] = LASSO_mashiqi(X,y);
 % where the 'beta' gives the Least Square solution, or
 %            [beta,history] = LASSO_mashiqi(X,y,T);
-% where the variable T is the norm-one constraint and 'beta' gives the
+% where the variable T is the norm-one constraint and 'beta.T' gives the
 % lasso solution under this norm-one constraint. If you want to
 % pre-standardize the input data X and y, then you'd better use:
-%            [beta,history] = LASSO_mashiqi(X,y,T,1); or
-%            [beta,history] = LASSO_mashiqi(X,y,[],1);
+%            [beta,history] = LASSO_mashiqi(X,y,T,[],1); or
+%            [beta,history] = LASSO_mashiqi(X,y,[],[],1);
 % then you will get the results.
-% The simplest example could be like this:
+% There is a simple example:
 %            clear;
 %            X = randn(200,50);
 %            beta = randn(50,1);
 %            y = X*beta;
 %            T = Inf;
 %            standardize = 0;
-%            [beta_hat1,history] = LASSO_mashiqi(X,y,T,s[],standardize);
+%            [beta_hat1,history] = LASSO_mashiqi(X,y,T,[],standardize);
 %            difference1 = norm(beta-beta_hat1);
 %            disp(difference1);
 %            T = norm(beta,1) / 2; % an active norm-one constraint
@@ -40,47 +107,13 @@ function [beta,history] = LASSO_mashiqi(X,y,T,Lambda,standardize)
 %            T = [0.1 0.2 0.3];
 %            Lambda = [0.2 0.3 0.4];
 %            [beta,history] = LASSO_mashiqi(X,y,T,Lambda);
-%            beta.T
-%            beta.Lambda
+%            beta_hat2.T
+%            beta_hat2.Lambda
 % That's it.
-%
-% Parameter instruction:
-% input:
-% X: samples of predictors. Each column of X is a predictor, and each row
-% is a data sample.
-% y: the response. y shold be a vertical vector.
-% T: the norm-one type (1)constraint. T can be a vector. T = [] as default.
-% Lambda: the corresponding type (2) constraint. Lambda can be a vector.
-% Lambda = [] as default.
-% standardize: the indicator. If standardize == 1, every column in X and y
-% will be standardized to mean zero and standard deviation 1. And if its
-% value is 0, then standardization process will not be executed.
-% standardize = 0 as default.
-%
-% output:
-% beta: weight vector.
-% history = the history of solution path. 'history' records the status in  
-% every breakpoint by recording the following value:
-%   [1] history.beta_trace: every beta value in the breakpoint, including
-%   the starting zero point.
-%   [2] history.correspondingBeta: every corresponding beta of the
-%   equiangular vector. The 'correspondingBeta' also represents the \Delta
-%   beta: 
-%           beta_(next breakpoint) = beta_(crrent breakpoint) +
-%           constant*correspondingBeta.
-%   [3] history.activeSet: stores the active sets. Every active set in the
-%   breakpoints will be stored in this cell-type variable. When you want to
-%   access the kth active set, you should input "history.activeSet{k+1}".
-%   [4] history.T: store the one-norm of beta in every breakpoint,
-%   including the starting zero point.
-%   [5] history.Lambda: store the corresponding Lambda.
-%   [6] history.A: if you read the reference paper below, you will know
-%   what is value is. It's difficult to explain if you didn't read this
-%   paper.
-%   [7] history.stopReason: a string type. Indicate in what situation is
-%   the function returned.
-%
-% reference: 
+% 
+% 
+% REFERENCE:
+% 
 % [1] Efron, Bradley, et al. "Least angle regression." The Annals of 
 %    statistics 32.2 (2004): 407-499.
 %}
