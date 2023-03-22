@@ -126,11 +126,10 @@ while FLAG
         end
         
         %% checking if the maxmum iteration number has reached
+        iter = iter + 1;
         if iter >= maxIter
             FLAG = false;
             break;
-        else
-            iter = iter + 1;
         end
     end
     if ( abs(fOld-fNew) < epss )
@@ -148,13 +147,13 @@ while FLAG
 end
 
 %% trim the unused columns
-betaTrace(:,(iter+1):end)	= [];
-f(:,(iter+1):end)           = [];
+betaTrace(:,iter:end)	= [];
+f(:,iter:end)           = [];
 
 % get the final beta
-beta                        = betaTrace(:,end);
+beta                    = betaTrace(:,end);
 
 % make results structured
-history.betaTrace           = betaTrace;
-history.f                   = f;
+history.betaTrace       = betaTrace;
+history.f               = f;
 clear betaTrace f;
