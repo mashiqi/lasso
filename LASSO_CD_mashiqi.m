@@ -10,7 +10,7 @@ function [beta,history] = LASSO_CD_mashiqi(X,y,lambda,standardize)
 % 
 % 
 % This function tries to find the proper solution of the following question:
-%            argmin_(beta) 0.5*||y - X*beta||_2 + lambda*||beta||_1
+%            argmin_(beta) 0.5*||y - X*beta||_2^2 + lambda*||beta||_1
 % 
 %
 % INPUT ARGUMENTS:
